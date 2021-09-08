@@ -1,7 +1,7 @@
 # LemonDB
 > Development Status: Beta
 
-Simple ang lightweight document oriented database
+Simple ang lightweight document oriented database written in pure `Python 3` (3.9)
 
 ## Examples
 Data insertion Example:
