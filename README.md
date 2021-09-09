@@ -44,3 +44,22 @@ data = db.search(
 print(data)
 # Output: John Doe
 ```
+
+### Encrypted LemonDB
+You can use Sidle Encryption within the LemonDB. Just use the `SidleMiddleware` and `SidlePlugin`
+
+```python
+from lemondb import LemonDB
+from lemondb.middleware import SidleMiddleware
+from lemondb.plugin import SidlePlugin
+
+db = LemonDB(
+  name = 'sidle_db',
+  middleware_cls = SidleMiddleware(password='password123'),
+  plugin_cls = SidlePlugin
+)
+
+db.insert({'name': 'John Doe'})
+
+```
+
