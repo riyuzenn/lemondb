@@ -407,7 +407,7 @@ class LemonDB:
                 # TODO: No result found on a search.
                 return None
 
-            self.document_cls.delete(data)
+            self.document_cls.delete(data, all=True)
             return data
 
     @logger.catch
