@@ -31,7 +31,7 @@ def get_long_description():
 setup(
     
     name="lemondb", 
-    description="Simple ang lightweight document oriented database",
+    description="Simple and lightweight document oriented database",
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
     author = 'Zenqi',
