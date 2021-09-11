@@ -453,16 +453,17 @@ class LemonDB:
         
         reconstructed_list = []
         for i in items:
-            for k,v in iterate_dict(i):
+            for k,v in i.items():
                 if use_re:
-                    if re.search(query, v, re.IGNORECASE):
-                        result.append({k:v})
+                    for _, rv in iterate_dict(v):
+                        if re.search(query, str(rv), re.IGNORECASE):
+                            result.append(v)
+                            
                 else:
-                    reconstructed_list.append({k:v})       
+                    reconstructed_list.append(v)
         
-
+        
         _query = Linq(reconstructed_list)
-        
         if use_sq:
             op, key, item = query()
             lambda_wrapper = lambda x: ops[op](x[item], key)

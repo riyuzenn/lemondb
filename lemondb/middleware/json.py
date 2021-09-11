@@ -106,9 +106,11 @@ class JsonMiddleware(BaseMiddleware):
         for table, value in list(data.items()):
             for k,v in list(value.items()):
                 if isinstance(key, (tuple, list)):
-                    for i in key:
-                        self.delete(i)
+                    if v in key:
+                        del data[table][k]
+                        
                     
+
                 if key == v and all:
                     del data[table][k]
                     

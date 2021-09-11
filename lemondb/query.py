@@ -263,9 +263,10 @@ class Linq:
         :returns: results wrapped with Linq
         :rtype: Linq
         """
-
+        
         result = []
         for i in self.iterable:
+             
             try:
                 if predicate(i):
                     result.append(i)            
