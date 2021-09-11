@@ -60,7 +60,13 @@ class JsonMiddleware(BaseMiddleware):
         with open(path, 'r+') as f:
             return self.serializer.load(f)
 
-    def write(self, item: Mapping, path: str):
+    def write(
+        self, 
+        item: Mapping, 
+        path: str, 
+        mode: Optional[str] = 'r+'
+    ):
+        
         """
         Write the given data to the file
         """
@@ -73,13 +79,13 @@ class JsonMiddleware(BaseMiddleware):
             raise FileNotFoundError('"%s" not found' % (path.absolute()))
 
         data = self.read(path); data.update(item)
-        with open(path, 'r+') as f:
+        with open(path, mode) as f:
             self.serializer.dump(data, f)
 
             
     def delete(
         self, 
-        key: str, 
+        key: Mapping, 
         path: str, 
         all: Optional[bool] = True
     ):
@@ -89,15 +95,26 @@ class JsonMiddleware(BaseMiddleware):
         file path
         """
 
-        raw = []
         data = self.read(path)
-        for table,v in data.items():
-            for k,v in v.items():
-                raw.append(v)
+        
+        #: TODO: Kindly remember that we convert
+        #: the data.items into a list to avoid
+        #: RuntimeError: changed sized during iteration
+        #: This happens because it return a iterator
+        #: instead of a list.
+
+        for table, value in list(data.items()):
+            for k,v in list(value.items()):
+                if isinstance(key, (tuple, list)):
+                    for i in key:
+                        self.delete(i)
+                    
                 if key == v and all:
                     del data[table][k]
+                    
                 elif key == v and not all:
                     del data[table][k]
                     break
         
-        self.write(data, path)
+        
+        self.write(data, path, mode='w')
