@@ -77,7 +77,13 @@ class JsonMiddleware(BaseMiddleware):
             self.serializer.dump(data, f)
 
             
-    def delete(self, key: str, path: str):
+    def delete(
+        self, 
+        key: str, 
+        path: str, 
+        all: Optional[bool] = True
+    ):
+        
         """
         Delete the given key and write to the given
         file path
@@ -88,10 +94,10 @@ class JsonMiddleware(BaseMiddleware):
         for table,v in data.items():
             for k,v in v.items():
                 raw.append(v)
-                if key == v:
+                if key == v and all:
+                    del data[table][k]
+                elif key == v and not all:
                     del data[table][k]
                     break
-
-        
         
         self.write(data, path)
