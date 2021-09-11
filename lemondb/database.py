@@ -411,6 +411,55 @@ class LemonDB:
             return data
 
     @logger.catch
+    def update(self, query: Any, item: Mapping):
+        """
+        ADDED: `v0.0.1`
+        
+        Update the data from the default given table name.
+        This perform a `search` query that can be 3 types,
+        and update the first result of the query.
+
+        Parameters:
+            query (Any):
+                The query syntax for searching item
+
+            item (Mapping):
+                The item to be replace
+
+        Example:
+
+            >>> from lemondb import LemonDB, Query
+            >>> db = LemonDB('test.json')
+            >>> query = Query()
+            >>> ...
+            >>> db.insert({'name': 'John Doe', 'password': '1234'})
+            >>> ...
+            >>> db.update(
+            >>>     query.name == 'John Doe', 
+            >>>     {'password': 'newpassword'}
+            >>> )
+            >>> ...
+
+        """
+
+        _ = self.search(query)
+        
+        if not _:
+            #: TODO: Searching failed. No result found
+            pass
+
+        result = _[0]
+        data = self.document_cls.read()
+        for table, value in list(data.items()):
+            for k,v in list(value.items()):
+                if v == result:
+                    data[table][k].update(item)
+                    break
+
+        self.document_cls.write(data, mode='write')
+        return True
+
+    @logger.catch
     def search(self, query):
         """
         Search an item from the database. The query accept
