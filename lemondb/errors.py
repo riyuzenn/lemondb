@@ -23,3 +23,6 @@ class LemonDBError(Exception):
 
 class PluginError(LemonDBError):
     pass
+
+class SearchQueryError(LemonDBError):
+    pass
