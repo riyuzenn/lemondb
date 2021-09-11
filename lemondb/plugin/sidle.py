@@ -47,7 +47,11 @@ class SidlePlugin(BasePlugin):
             name = self.name
 
         path = pathlib.Path(name).absolute()
-        self.middleware_cls.write({self.kwargs.get('table_name'): {}}, path)
+        self.middleware_cls.write(
+            {self.kwargs.get('table_name'): {}}, 
+            path, 
+            mode='wb'
+        )
 
     def run(
         self, 

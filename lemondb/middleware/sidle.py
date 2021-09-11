@@ -72,13 +72,24 @@ class SidleMiddleware(BaseMiddleware):
             if not raw:
                 raise error.PasswordError("\"%s\" is not a valid password" % (self.password))
 
+            if isinstance(raw, bytes):
+                raw = raw.decode()
+            else:
+                raw = str(raw)
+                
             data = self.json.loads(
                 s=raw
             )
         
         return data
 
-    def write(self, item: Mapping, path: str):
+    def write(
+        self, 
+        item: Mapping, 
+        path: str, 
+        mode: Optional[str] = 'rb+'
+    ):
+        
         """
         Write the given item with encryption
         """
@@ -94,5 +105,42 @@ class SidleMiddleware(BaseMiddleware):
         else:
             path = path
             
-        with open(path, 'wb') as f:
+        with open(path, mode) as f:
             f.write(item)
+
+    def delete(
+        self, 
+        key: str, 
+        path: str, 
+        all: Optional[bool]
+    ):
+        """
+        Delete the given key and write to the given
+        file path
+        """
+
+        data = self.read(path)
+        
+        #: TODO: Kindly remember that we convert
+        #: the data.items into a list to avoid
+        #: RuntimeError: changed sized during iteration
+        #: This happens because it return a iterator
+        #: instead of a list.
+
+        for table, value in list(data.items()):
+            for k,v in list(value.items()):
+                if isinstance(key, (tuple, list)):
+                    if v in key:
+                        del data[table][k]
+                        
+                    
+
+                if key == v and all:
+                    del data[table][k]
+                    
+                elif key == v and not all:
+                    del data[table][k]
+                    break
+        
+        
+        self.write(data, path, mode='wb')   
