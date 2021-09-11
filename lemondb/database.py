@@ -415,7 +415,7 @@ class LemonDB:
     @logger.catch
     def update(self, query: Any, item: Mapping):
         """
-        ADDED: `v0.0.1`
+        ADDED: `v0.0.2`
         
         Update the data from the default given table name.
         This perform a `search` query that can be 3 types,
