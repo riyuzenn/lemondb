@@ -21,7 +21,8 @@
 from lemondb.types import (
     Dict,
     Any,
-    Mapping
+    Mapping,
+    Optional
 )
 
 class BaseMiddleware:
@@ -36,5 +37,5 @@ class BaseMiddleware:
     def write(self, item: Mapping):
         raise NotImplementedError
 
-    def delete(self, key: str, path: str):
+    def delete(self, key: str, path: str, all: Optional[bool]):
         raise NotImplementedError
