@@ -93,6 +93,11 @@ class SidleMiddleware(BaseMiddleware):
         """
         Write the given item with encryption
         """
+        if mode == 'w':
+            mode = 'wb'
+        elif mode == 'w+':
+            mode == 'wb+'
+            
         if isinstance(item, dict):
             item = self.json.dumps(item)
         else:
