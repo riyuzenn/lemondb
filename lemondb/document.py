@@ -88,8 +88,8 @@ class Document:
         return self.middleware.write(item, path=self.path)
 
 
-    def delete(self, item: Mapping):
-        return self.middleware.delete(item, path=self.path)
+    def delete(self, item: Mapping, all: Optional[bool] = True):
+        return self.middleware.delete(item, path=self.path, all=all)
     
     def _increment(self, data: Mapping, item: Mapping) -> Mapping:
         """
