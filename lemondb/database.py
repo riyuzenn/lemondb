@@ -42,7 +42,9 @@ from lemondb.document import Document
 from lemondb.constants import ops
 from lemondb.utils import iterate_dict
 from lemondb.logger import logger
+from lemondb.errors import SearchQueryError
 import re
+
 
 
 class LemonDB:
@@ -446,7 +448,7 @@ class LemonDB:
         
         if not _:
             #: TODO: Searching failed. No result found
-            pass
+            raise SearchQueryError('The search query doesnt exist on the table/database')
 
         result = _[0]
         data = self.document_cls.read()
