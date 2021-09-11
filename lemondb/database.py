@@ -456,7 +456,7 @@ class LemonDB:
                     data[table][k].update(item)
                     break
 
-        self.document_cls.write(data, mode='write')
+        self.document_cls.write(data, mode='w')
         return True
 
     @logger.catch
