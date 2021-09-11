@@ -22,7 +22,7 @@ import os
 import sys
 import pathlib
 
-env_dir = pathlib.Path().home() / '.i18n'
+env_dir = pathlib.Path().home() / '.lemondb'
 log_dir = env_dir / 'logs'
 
 if not env_dir.exists():
@@ -31,18 +31,15 @@ elif env_dir.is_file():
     os.remove(str(env_dir.absolute()))
     os.mkdir(env_dir)
 
-log_path = str((log_dir / 'i18n-logs').absolute())
+log_path = str((log_dir / 'lemon-logs').absolute())
 
-try:
-    import loguru; logger = loguru.logger
-    logger.remove()
-    logger.add(log_path, rotation="100 MB", compression='zip')
-    logger.add(
-        sys.stdout, 
-        format='<green>[{time:HH:mm:ss}]</green> |  <magenta>{level}</magenta>  | <lvl>{message}</lvl>', 
-        level='INFO'
-    )
-    logger.opt(colors=True)
-    
-except ModuleNotFoundError:
-    logger = None
+
+import loguru; logger = loguru.logger
+logger.remove()
+logger.add(log_path, rotation="100 MB", compression='zip')
+logger.add(
+    sys.stdout, 
+    format='<green>[{time:HH:mm:ss}]</green> |  <magenta>{level}</magenta>  | <lvl>{message}</lvl>', 
+    level='INFO'
+)
+logger.opt(colors=True)
