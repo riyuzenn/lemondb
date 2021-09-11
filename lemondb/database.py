@@ -362,7 +362,12 @@ class LemonDB:
             self.insert(i)
 
     @logger.catch
-    def delete(self, query):
+    def delete(
+        self, 
+        query: Any, 
+        all: Optional[bool] = True
+    ):
+        
         """
         Delete a key from a query given. The query accept
         3 types. Similar to `search`. 
@@ -370,7 +375,13 @@ class LemonDB:
         Parameter:
             query (Any):
                 The query of the key to delete.
-        
+
+            all (Optional[Boolean]):
+                (added on v0.0.2)
+
+                Set if all existing keys/simillar value
+                to be deleted. Default Value: `True`
+
         Examples:
             >>> query = Query()
             >>> db.delete(query.name == 'John Doe')
@@ -382,12 +393,16 @@ class LemonDB:
         """
         
         if isinstance(query, Mapping):
-            self.document_cls.delete(query)
+            self.document_cls.delete(query, all=True)
             return query
 
         else:
             try:
-                data = self.search(query)[0]
+                if all:
+                    data = self.search(query)
+                else:
+                    data = self.search(query)[0]
+            
             except IndexError:
                 # TODO: No result found on a search.
                 return None
