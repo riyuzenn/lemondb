@@ -65,7 +65,7 @@ db.insert({'name': 'John Doe'})
 # Creating Middlewares & Plugins
 
 By creating middleware, you need to use the base class `lemondb.middleware.base.BaseMiddleware`. The `BaseMiddleware`
-class handle all operation like **read**, **write** and **delete**. While plugins handle the initializing the
+class handle all operation like **read**, **write** and **delete**. While plugins handle the initializing of the
 database operation and it is called whenever the `LemonDB` instance is initialized.
 
 Just make sure to create a class based on the BaseClasses and inherit all functions, if the methods/functions are not
