@@ -62,4 +62,26 @@ db = LemonDB(
 db.insert({'name': 'John Doe'})
 
 ```
+# Creating Middlewares & Plugins
 
+By creating middleware, you need to use the base class `lemondb.middleware.base.BaseMiddleware`. The `BaseMiddleware`
+class handle all operation like **read**, **write** and **delete**. While plugins handle the initializing the
+database operation and it is called whenever the `LemonDB` instance is initialized.
+
+Just make sure to create a class based on the BaseClasses and inherit all functions, if the methods/functions are not
+inherited properly, it will throw an `NotImplementedError`.
+
+Finally,you can call your custom middleware or plugin using the `plugin_cls` and `middleware_cls` parameter for the
+database. The default value is `JsonMiddleware` and `LemonPlugin`. Here is the example
+
+```python
+from lemondb import LemonDB
+from middleware import CustomMiddleware
+from plugin import CustomPlugin
+
+db = LemonDB(
+  name='db.json',
+  middleware_cls=CustomMiddleware,
+  plugin_cls=CustomPlugin
+)
+```
