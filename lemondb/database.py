@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
+import os
 from lemondb.plugin import (
     BasePlugin,
     LemonPlugin
@@ -37,6 +37,12 @@ from lemondb.query import (
     SearchQuery,
     Linq
 )
+from lemondb.server import (
+    LemonServer,
+    LemonClient
+)
+import socket
+from urllib.parse import urlparse
 from lemondb.middleware import JsonMiddleware
 from lemondb.document import Document
 from lemondb.constants import ops
@@ -147,6 +153,15 @@ class LemonDB:
     #: The default table for the database
     default_table: str = "_table"
 
+    #: LemonCLient Instance
+    #: versionAdded: 0.0.3
+    client_instance: LemonClient = None
+
+    #: LemonServer Instance
+    #: versionAdded: 0.0.3
+    server_instance: LemonClient = None
+
+
     def __init__(
         self,
         name: str,
@@ -192,6 +207,10 @@ class LemonDB:
         self.db_path = pathlib.Path(self.name)
         self.repr_name = type(self).__name__
         self.plugin_cls = plugin_cls
+        self.logger = logger
+
+        self.server = self.kwargs.get('server', False)
+        self.client = self.kwargs.get('client', False)
 
         if not plugin_cls:
             self.plugin_cls = LemonPlugin()
@@ -218,27 +237,45 @@ class LemonDB:
         if self.table_name:
             self.default_table = self.table_name
 
-        try:
-            #: Run the plugin and give all parameters
-            self.plugin_cls.run(
-                name=self.name,
-                document_cls=self.document_cls,
-                plugin_cls=self.plugin_cls,
-                middleware_cls=self.middleware_cls,
-                **self.kwargs
+        if self.kwargs.get('host_checking', False):
+            if self.__check_if_server_client():
+                self.client = True
+            elif self.__check_if_server_client == 0:
+                self.server = True
+        
+        if self.server:
+            parsed = self.__parse_url(self.name)
+            db_dir = pathlib.Path().home() / '.lemondb' / 'db'
+            if not db_dir.exists():
+                os.mkdir(db_dir.absolute())
+            
+            self.name = str(
+                (db_dir / 'db' ).absolute()
             )
-        except TypeError:
-            self.plugin_cls = plugin_cls()
-            self.plugin_cls.run(
-                name=self.name,
-                document_cls=self.document_cls,
-                plugin_cls=self.plugin_cls,
-                middleware_cls=self.middleware_cls,
-                **self.kwargs
+            self.document_cls = Document(
+                path=(db_dir / 'db' ).absolute(),
+                middleware_cls=self.middleware_cls
             )
 
+            self.run_plugin(plugin_cls=plugin_cls)
+            self.plugin_cls._init_db()
+
+            self.server_instance = LemonServer(
+                host=(parsed['host'], parsed['port'])
+            )
+            self.server_instance.run(self)
         
-        if not self.db_path.exists():
+        elif self.client:
+            parsed = self.__parse_url(self.name)
+            self.client_instance = LemonClient(
+                host=(parsed['host'], parsed['port'])
+            )
+
+        self.run_plugin(plugin_cls=plugin_cls)
+
+        if not self.server or self.client \
+                and self.db_path.exists():
+            
             self.plugin_cls._init_db()
 
     @logger.catch
@@ -318,6 +355,13 @@ class LemonDB:
             The item to be inserted.
 
         """
+        if self.client_instance:
+            self.client_instance.send(
+                op='insert',
+                data=item
+            )
+            return item
+            
         
         raw_data = self.document_cls.read()
         raw = False
@@ -359,9 +403,16 @@ class LemonDB:
         Simillar to `insert` however insert all items 
         from the given iterable / list. 
         """
-
+        
         for i in iterable:
-            self.insert(i)
+            if self.client_instance:
+                self.client_instance.send(
+                    op='insert_many',
+                    data=i
+                )
+            else: self.insert(i)
+
+        return iterable
 
     @logger.catch
     def delete(
@@ -393,6 +444,11 @@ class LemonDB:
             The deleted item.
 
         """
+        if self.client_instance:
+            self.client_instance.send(
+                op='delete',
+                data=query
+            )
         
         if isinstance(query, Mapping):
             self.document_cls.delete(query, all=True)
@@ -486,6 +542,12 @@ class LemonDB:
             The list of possible result for the queries.
 
         """
+        if self.client_instance:
+            self.client_instance.send(
+                op='search',
+                data=query
+            )
+
         items = self.items(dict=True)
         result = []
         use_lambda = False
@@ -560,3 +622,72 @@ class LemonDB:
         data.update(_); return data
 
     
+    def __check_if_server_client(self):
+        """
+        Check if the db name is server or client
+        """
+
+        # Match if the given db name is a server pattern
+        pattern = re.compile(
+            r'^(?:lemondb|http)s?://' # lemondb:// or https://
+            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+            r'localhost|' #localhost...
+            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+            r'(?::\d+)?' # optional port
+            r'(?:/?|[/?]\S+)$', re.IGNORECASE
+        )
+
+        m = re.match(pattern, self.name)
+        
+        if m:
+            #: Try if it is client or server
+            parsed = self.__parse_url(self.name)
+            try:
+                sock = socket.socket()
+                sock.connect((parsed['host'], parsed['port']))
+                return 1 #: 1 means client
+
+            except socket.error:
+                return 0 #: 0 means server
+            
+
+        return None
+
+    def __parse_url(self, url: str):
+        """
+        Parse the url and return a dictionary.
+        Version Added: 0.0.3
+        """
+
+        parsed = urlparse(url)
+        return {
+            'scheme': parsed.scheme,
+            'host': parsed.hostname,
+            'port': parsed.port,
+            'query': parsed.query,
+        }
+
+    def run_plugin(self, plugin_cls: Any):
+        """
+        Seperate function to run plugin.
+        Version Added: 0.0.3
+        """
+
+        try:
+            #: Run the plugin and give all parameters
+            self.plugin_cls.run(
+                name=self.name,
+                document_cls=self.document_cls,
+                plugin_cls=self.plugin_cls,
+                middleware_cls=self.middleware_cls,
+                **self.kwargs
+            )
+        except TypeError:
+            self.plugin_cls = plugin_cls()
+            self.plugin_cls.run(
+                name=self.name,
+                document_cls=self.document_cls,
+                plugin_cls=self.plugin_cls,
+                middleware_cls=self.middleware_cls,
+                **self.kwargs
+            )
