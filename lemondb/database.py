@@ -75,7 +75,7 @@ class LemonDB:
 
     For Server & Client, make sure to use the lemondb:// as the scheme
     for the server. This recognized and parsed the host, port and the
-    keyword argument given by the query string.
+    keyword argument given by the query string. 
 
     Based on performance, LemonDB comes in first place ahead of the 
     popular `TinyDB`, but it is not expected to replace `TinyDB`.
