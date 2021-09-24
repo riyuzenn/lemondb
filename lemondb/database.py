@@ -73,10 +73,14 @@ class LemonDB:
     should work on versions  <= 3.7. This class handle all operation 
     including storing document on a file.
 
+    For Server & Client, make sure to use the lemondb:// as the scheme
+    for the server. This recognized and parsed the host, port and the
+    keyword argument given by the query string.
+
     Based on performance, LemonDB comes in first place ahead of the 
     popular `TinyDB`, but it is not expected to replace `TinyDB`.
     
-    
+
     Here are the result for the database operation that store 
     1000 random generated strings.
 
@@ -138,6 +142,14 @@ class LemonDB:
             Set the document class for creating documents.
             Default Value: Document
 
+    Server Example:
+        >>> from lemondb import LemonDB
+        >>> db = LemonDB('lemondb://0.0.0.0:3000', server=True)
+
+    Client Example:
+        >>> from lemondb import LemonDB
+        >>> db = LemonDB('lemondb://localhost:3000', client=True)
+        >>> db.insert({'name': 'John Doe'})
 
     Example:
 
