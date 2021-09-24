@@ -55,17 +55,27 @@ import re
 
 class LemonDB:
     """
-    Note: This library is currently on a BETA / ALPHA. Not yet
+    NOTE: This library is currently on a BETA / ALPHA. Not yet
     used for production since there is some bugs might occur.
+    
+    Release Changes: v.0.0.3:
+        The new release v.0.0.3 has added new features. The new
+        Socket Server & Client feature so that you can run the
+        database on a VPS or any hosting server. 
 
+    NOTE: For Server & Client used. Kindly pass keyword argument
+    host_checking to automatically detect if it is client or
+    server or manually pass keyword arguments if the given name
+    is client or server to avoid slow performance. 
 
     LemonDB is a simple and lightweight document oriented database 
     written in pure Python 3 tried on version: `3.9` & `3.8`. It 
     should work on versions  <= 3.7. This class handle all operation 
     including storing document on a file.
 
-    Based on the performance, LemonDB comes first before the popular
-    `TinyDB` however it is not said to be replaced the `TinyDB`.
+    Based on performance, LemonDB comes in first place ahead of the 
+    popular `TinyDB`, but it is not expected to replace `TinyDB`.
+    
     
     Here are the result for the database operation that store 
     1000 random generated strings.
@@ -82,7 +92,7 @@ class LemonDB:
     - `hyperjson (Estimated result for 1000 insert operation: 20.18 sec)`
 
 
-    Note: LemonDB support table operation where you stored a data inside
+    NOTE: LemonDB support table operation where you stored a data inside
     a table. You can create / get the table by calling the `table` method:
         
         >>> from lemondb import LemonDB
