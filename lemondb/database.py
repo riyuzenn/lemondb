@@ -252,9 +252,12 @@ class LemonDB:
         else:
             self.document_cls = document_cls
 
-        self.kwargs.__setitem__('table_name', self.default_table)
-        self.table_name = self.kwargs.get('table_name', self.default_table)
         
+        if not 'table_name' in self.kwargs:
+            self.kwargs.__setitem__('table_name', self.default_table)
+        
+        self.table_name = self.kwargs.get('table_name', self.default_table)
+    
 
         if self.table_name:
             self.default_table = self.table_name
@@ -300,6 +303,13 @@ class LemonDB:
             
             self.plugin_cls._init_db()
 
+        if self.server:
+            self.repr_name = 'LemonServer'
+        elif self.client:
+            self.repr_name = 'LemonClient'
+
+        
+
     @logger.catch
     def table(self, name: str, **options):
         """
@@ -310,13 +320,15 @@ class LemonDB:
         the data.
         """
 
-        data = self.document_cls.read()
-        if name in list(data.keys()):
-           for k in data.keys():
-               if k == name:
-                    db = LemonDB(self.name, table_name=name)
-                    db.repr_name = 'LemonTable'
-                    return db
+        options.__setitem__('table_name', name)
+        
+        return LemonDB(
+            name=name, 
+            plugin_cls=self.plugin_cls,
+            middleware_cls=self.middleware_cls, 
+            document_cls=self.document_cls,
+            **options
+        )
 
     @logger.catch
     def tables(self):
