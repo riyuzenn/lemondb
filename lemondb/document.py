@@ -69,7 +69,8 @@ class Document:
     def write(
         self, 
         item: Mapping, 
-        raw: Optional[bool] = False
+        raw: Optional[bool] = False,
+        mode: Optional[str] = 'r+'
     ):
         """
         Write the item to the document
@@ -85,7 +86,7 @@ class Document:
             item = item
 
         
-        return self.middleware.write(item, path=self.path)
+        return self.middleware.write(item, path=self.path, mode=mode)
 
 
     def delete(self, item: Mapping, all: Optional[bool] = True):
