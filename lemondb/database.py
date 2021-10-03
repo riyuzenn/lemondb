@@ -298,9 +298,8 @@ class LemonDB:
 
         self.run_plugin(plugin_cls=plugin_cls)
 
-        if not self.server or self.client \
-                and self.db_path.exists():
-            
+        
+        if not self.db_path.exists():
             self.plugin_cls._init_db()
 
         if self.server:
@@ -548,8 +547,8 @@ class LemonDB:
                     data[table][k].update(item)
                     break
 
-        self.document_cls.write(data, mode='w')
-        return True
+        self.document_cls.write(data, mode='w', raw=True)
+        return item
 
     @logger.catch
     def search(self, query):
