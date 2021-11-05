@@ -611,9 +611,21 @@ class LemonDB:
         
         _query = Linq(reconstructed_list)
         if use_sq:
+            
             op, key, item = query()
-            lambda_wrapper = lambda x: ops[op](x[item], key)
-            return _query.where(lambda_wrapper).to_list()
+            def wrapper(i):
+                if isinstance(key, str):
+                    _key = key.lower()
+                    m = re.search(_key, i[item], re.IGNORECASE)
+                    if m:
+                        return ops[op](i[item], m.group())
+                    else: 
+                        #: If there is no match, then just ignore.
+                        return ops[op](i[item], key)
+
+                return ops[op](i[item], key)
+
+            return _query.where(wrapper).to_list()
 
         if use_lambda:
             return _query.where(query).to_list()
