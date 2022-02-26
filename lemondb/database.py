@@ -51,6 +51,17 @@ from lemondb.logger import logger
 from lemondb.errors import SearchQueryError
 import re
 
+def catch_exceptions(decorator=None):
+    condition = True if logger else False
+    if not decorator:
+        decorator = logger.catch if logger else None
+
+    def deco(func):
+        if not condition:
+            return func
+        return decorator(func)
+        
+    return deco
 
 
 class LemonDB:
@@ -229,10 +240,13 @@ class LemonDB:
         self.db_path = pathlib.Path(self.name)
         self.repr_name = type(self).__name__
         self.plugin_cls = plugin_cls
-        self.logger = logger
 
         self.server = self.kwargs.get('server', False)
         self.client = self.kwargs.get('client', False)
+
+        if logger and self.kwargs.get('debug', False):
+            #: added -> v0.0.4
+            self.set_logger()
 
         if not plugin_cls:
             self.plugin_cls = LemonPlugin()
@@ -309,7 +323,7 @@ class LemonDB:
 
         
 
-    @logger.catch
+    @catch_exceptions()
     def table(self, name: str, **options):
         """
         The table for the database. If the given
@@ -329,7 +343,7 @@ class LemonDB:
             **options
         )
 
-    @logger.catch
+    @catch_exceptions()
     def tables(self):
         """
         Get all table name and return a list.
@@ -337,7 +351,7 @@ class LemonDB:
         return [k for k in self.document_cls.read().keys()]
 
 
-    @logger.catch
+    @catch_exceptions()
     def items(self, table_name: Optional[str] = None, **options):
         """
         Return all items from the given table, packed on a single list
@@ -358,7 +372,7 @@ class LemonDB:
         return _items
 
 
-    @logger.catch
+    @catch_exceptions()
     def clear(self):
         """
         Clear all item from the database including the tables and
@@ -369,7 +383,7 @@ class LemonDB:
         data.clear()
         self.plugin_cls._init_db()
 
-    @logger.catch
+    @catch_exceptions()
     def insert(self, item: Mapping, **options):
         """
         Insert a item to the database. The item should
@@ -388,6 +402,10 @@ class LemonDB:
             The item to be inserted.
 
         """
+        #: If the data is set, then convert it to list.
+        if isinstance(item, set):
+            item = list(item)
+        
         if self.client_instance:
             self.client_instance.send(
                 op='insert',
@@ -430,7 +448,7 @@ class LemonDB:
         self.document_cls.write(item, raw=raw)
         return item
     
-    @logger.catch
+    @catch_exceptions()
     def insert_many(self, iterable: Iterable):
         """
         Simillar to `insert` however insert all items 
@@ -447,7 +465,7 @@ class LemonDB:
 
         return iterable
 
-    @logger.catch
+    @catch_exceptions()
     def delete(
         self, 
         query: Any, 
@@ -501,7 +519,7 @@ class LemonDB:
             self.document_cls.delete(data, all=True)
             return data
 
-    @logger.catch
+    @catch_exceptions()
     def update(self, query: Any, item: Mapping):
         """
         ADDED: `v0.0.2`
@@ -550,7 +568,7 @@ class LemonDB:
         self.document_cls.write(data, mode='w', raw=True)
         return item
 
-    @logger.catch
+    @catch_exceptions()
     def search(self, query):
         """
         Search an item from the database. The query accept
@@ -736,3 +754,7 @@ class LemonDB:
                 middleware_cls=self.middleware_cls,
                 **self.kwargs
             )
+
+    def set_logger(self):
+        self.logger = logger
+
