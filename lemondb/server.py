@@ -23,7 +23,11 @@ from lemondb.types import (
     Optional,
     Mapping
 )
-from sidle.enc import SidleEncryption
+try:
+    from sidle.enc import SidleEncryption
+except ModuleNotFoundError:
+    SidleEncryption = None
+
 import socket
 import json
 import sys
@@ -121,7 +125,11 @@ class LemonServer(BaseServer):
         self.host = host
         self.key  = key
         self.opt  = options
-        self.enc  = SidleEncryption(self.enc_key)
+        if SidleEncryption:
+            self.enc  = SidleEncryption(self.enc_key)
+        else:
+            self.enc = None
+            
         self.buff = self.opt.get('buffer_value', 65537)
 
         if isinstance(host, str):
