@@ -28,6 +28,12 @@ def get_long_description():
 
     return readme
 
+extras_require = {
+    'logger': 'loguru>=0.5.3',
+    'crypto': 'sidle>=0.0.2',
+    'cli': 'hypecli>=0.0.8'
+}
+
 setup(
     
     name="lemondb", 
@@ -38,9 +44,6 @@ setup(
     license = 'MIT',
     version = __version__,
     packages = [p for p in find_packages() if 'test' not in p],
-    install_requires=[
-        'sidle>=0.0.2',
-        'loguru>=0.5.3'
-    ],
+    extras_require=extras_require
 
 )
