@@ -33,13 +33,18 @@ elif env_dir.is_file():
 
 log_path = str((log_dir / 'lemon-logs').absolute())
 
+try:
+    import loguru
+    logger = loguru.logger
+except ModuleNotFoundError:
+    logger = None
 
-import loguru; logger = loguru.logger
-logger.remove()
-logger.add(log_path, rotation="100 MB", compression='zip')
-logger.add(
-    sys.stdout, 
-    format='<green>[{time:HH:mm:ss}]</green> |  <magenta>{level}</magenta>  | <lvl>{message}</lvl>', 
-    level='INFO'
-)
-logger.opt(colors=True)
+if logger:
+    logger.remove()
+    logger.add(log_path, rotation="100 MB", compression='zip')
+    logger.add(
+        sys.stdout, 
+        format='<green>[{time:HH:mm:ss}]</green> |  <magenta>{level}</magenta>  | <lvl>{message}</lvl>', 
+        level='INFO'
+    )
+    logger.opt(colors=True)
