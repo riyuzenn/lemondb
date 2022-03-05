@@ -30,7 +30,7 @@ def get_long_description():
 
 extras_require = {
     'logger': 'loguru>=0.5.3',
-    'crypto': 'sidle>=0.0.2',
+    'crypto': 'sidle>=0.0.4',
     'cli': 'hypecli>=0.0.8'
 }
 
