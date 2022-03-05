@@ -35,7 +35,8 @@ from lemondb.types import (
 )
 from lemondb.query import (
     SearchQuery,
-    Linq
+    Linq,
+    LemonCursor
 )
 from lemondb.server import (
     LemonServer,
@@ -358,7 +359,16 @@ class LemonDB:
         """
 
         return_dict = options.get('dict', False)
+        item = options.get('item', False)
         data = self.document_cls.read()
+        
+        if item:
+            l = []
+            for k,v in data.items():
+                for i,v in v.items():
+                    l.append(v)
+            return l
+
         if table_name:        
             _items = [data[x] for x in data.keys() if x == table_name]
         else:
@@ -569,7 +579,7 @@ class LemonDB:
         return item
 
     @catch_exceptions()
-    def search(self, query):
+    def search(self, query=None):
         """
         Search an item from the database. The query accept
         3 types. The first one is the standard `SearchQuery`,
@@ -611,13 +621,17 @@ class LemonDB:
         elif isinstance(query, SearchQuery):
             use_sq = True
 
-        else:
+        elif query != None:
             use_re = True
 
+        if not query:
+            return LemonCursor(self.items(item=True))
         
         reconstructed_list = []
+        
         for i in items:
             for k,v in i.items():
+
                 if use_re:
                     for _, rv in iterate_dict(v):
                         if re.search(query, str(rv), re.IGNORECASE):
@@ -643,13 +657,13 @@ class LemonDB:
 
                 return ops[op](i[item], key)
 
-            return _query.where(wrapper).to_list()
+            return LemonCursor(_query.where(wrapper).to_list())
 
         if use_lambda:
-            return _query.where(query).to_list()
+            return LemonCursor(_query.where(query).to_list())
         
 
-        return result
+        return LemonCursor(result)
         
     def __len__(self):
         data = self.document_cls.read()
