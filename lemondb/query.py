@@ -21,6 +21,81 @@
 import itertools
 from lemondb.types import Iterable
 
+class QueryResult:
+    def __init__(self, data):
+        self.data = data
+
+    def __repr__(self):
+        return "<QueryResult data=%s>".format(
+            data=self.data
+        )
+
+    def __call__(self):
+        return self.data
+
+class _Cursor:
+    """
+    A database cursor used for iterating over query result.
+    """
+    def __init__(self, data: list):
+        self.data = data
+
+    def __getitem__(self, index):
+        if not isinstance(index, int):
+            raise ValueError('It should be an int')
+
+        result = self.data[index]
+        return result()
+
+    def __len__(self):
+        return len(self.data)
+
+    def __iter__(self):
+        return iter(self.data)
+
+    @property
+    def length(self):
+        return len(self)
+
+
+    def add_query_result(self, data: QueryResult):
+        """
+        Add query result to the mapping data
+        """
+        self.data.append(data)
+        return self.data
+    
+    def where(self, condition):
+        d = Linq(self.data)
+        return _Cursor(d.where(condition))
+
+
+    def close(self):
+        """
+        Close the cursor / removes all the query result
+        """
+        self.data.clear()
+
+    def clone(self):
+        """
+        Return the copy of the data `:class: _Cursor`
+        """
+        copy = self.data.copy()
+        return _Cursor(copy)
+
+    def __repr__(self) -> str:
+        return "<%s length=%s>" % (
+            type(self).__name__, 
+            len(self)
+        )
+
+
+class LemonCursor(_Cursor):
+    """
+    Alias for `:class: _Cursor`
+    """
+
+
 class SearchQuery:
     """
     A search query instance
@@ -422,3 +497,5 @@ class LinqException(Exception):
     Special exception to be thrown by Linq
     """
     pass
+
+
