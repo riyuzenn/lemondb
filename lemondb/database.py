@@ -579,11 +579,11 @@ class LemonDB:
         return item
 
     @catch_exceptions()
-    def search(self, query=None, rate: int = None):
+    def search(self, query=None, **options):
         """
         Search an item from the database. The query accept
-        3 types. The first one is the standard `SearchQuery`,
-        next is the `lambda` function and the `re` pattern.
+        4 types. The first one is the standard `SearchQuery`,
+        next is the `lambda` function, dict query and the `re` pattern.
 
         Parameter:
             query (Any):
@@ -603,6 +603,8 @@ class LemonDB:
             The list of possible result for the queries.
 
         """
+        rate = options.pop('rate', None)
+        
         if self.client_instance:
             self.client_instance.send(
                 op='search',
@@ -629,9 +631,11 @@ class LemonDB:
 
         if not query:
             c = LemonCursor(self.items(item=True))
-            if rate:
-                c = c[rate]
-                return c
+            if rate and rate <= 1:
+                c = c.all()[:rate][0]
+            elif rate:
+                c = c.all[:rate]
+
             return c
 
         if use_dict:
@@ -677,22 +681,47 @@ class LemonDB:
                 return ops[op](i[item], key)
 
             c = LemonCursor(_query.where(wrapper).to_list())
-            if rate:
-                c = c[rate]
+            if rate and rate <= 1:
+                c = c.all()[:rate][0]
+            elif rate:
+                c = c.all[:rate]
+            
             return c
         
         if use_lambda:
             c = LemonCursor(_query.where(query).to_list())
-            if rate:
-                c = c[rate]
-                return c
+            if rate and rate <= 1:
+                c = c.all()[:rate][0]
+            elif rate:
+                c = c.all[:rate]
+
             return c
 
         c = LemonCursor(result)
-        if rate:
-            c = c[rate]
-            return c
+        if rate and rate <= 1:
+            c = c.all()[:rate][0]
+        elif rate:
+            c = c.all[:rate]
+
         return c
+
+    @catch_exceptions()
+    def find_one(self, query=None):
+        """
+        Fetch the query and return the first appearance from the
+        database. 
+
+        Example:
+            >>> db.find_one({'name': 'John Doe'})
+            >>> {'name': 'John Doe', 'user_id': 19123713123}
+
+        """
+        return self.search(query, rate=1)
+
+    @catch_exceptions()
+    def find(self, query=None, **options):
+        return self.search(query, **options)
+
 
     def __len__(self):
         data = self.document_cls.read()
@@ -801,3 +830,5 @@ class LemonDB:
     def set_logger(self):
         self.logger = logger
 
+
+    find.__doc__ = search.__doc__
