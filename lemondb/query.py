@@ -69,6 +69,12 @@ class _Cursor:
         d = Linq(self.data)
         return _Cursor(d.where(condition))
 
+    def all(self):
+        """
+        Get all list of query result.
+        """
+        return self.data
+
 
     def close(self):
         """
