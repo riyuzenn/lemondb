@@ -579,7 +579,7 @@ class LemonDB:
         return item
 
     @catch_exceptions()
-    def search(self, query=None):
+    def search(self, query=None, rate: int = None):
         """
         Search an item from the database. The query accept
         3 types. The first one is the standard `SearchQuery`,
@@ -628,8 +628,12 @@ class LemonDB:
             use_re = True
 
         if not query:
-            return LemonCursor(self.items(item=True))
-        
+            c = LemonCursor(self.items(item=True))
+            if rate:
+                c = c[rate]
+                return c
+            return c
+
         if use_dict:
             query = list(query.items())
             c = LemonCursor([])
@@ -672,14 +676,24 @@ class LemonDB:
 
                 return ops[op](i[item], key)
 
-            return LemonCursor(_query.where(wrapper).to_list())
-
+            c = LemonCursor(_query.where(wrapper).to_list())
+            if rate:
+                c = c[rate]
+            return c
+        
         if use_lambda:
-            return LemonCursor(_query.where(query).to_list())
-        
+            c = LemonCursor(_query.where(query).to_list())
+            if rate:
+                c = c[rate]
+                return c
+            return c
 
-        return LemonCursor(result)
-        
+        c = LemonCursor(result)
+        if rate:
+            c = c[rate]
+            return c
+        return c
+
     def __len__(self):
         data = self.document_cls.read()
         return len(data[self.default_table])
