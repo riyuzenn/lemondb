@@ -620,6 +620,9 @@ class LemonDB:
 
         elif isinstance(query, SearchQuery):
             use_sq = True
+        
+        elif isinstance(query, dict):
+            use_dict = True
 
         elif query != None:
             use_re = True
@@ -627,6 +630,18 @@ class LemonDB:
         if not query:
             return LemonCursor(self.items(item=True))
         
+        if use_dict:
+            query = list(query.items())
+            c = LemonCursor([])
+            for i in self.items(item=True):
+                item = list(i.items())
+                #: Convert the list of items into set and check for same key, value
+                if set(query).intersection(item):
+                    c.add_query_result(i)    
+
+            return c
+
+
         reconstructed_list = []
         
         for i in items:
