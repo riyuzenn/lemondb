@@ -45,7 +45,10 @@ class _Cursor:
             raise ValueError('It should be an int')
 
         result = self.data[index]
-        return result()
+        if isinstance(result, SearchQuery):
+            return result()
+        else:
+            return result
 
     def __len__(self):
         return len(self.data)
