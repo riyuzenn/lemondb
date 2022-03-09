@@ -616,6 +616,7 @@ class LemonDB:
         use_lambda = False
         use_re = False
         use_sq = False
+        use_dict = False
 
         if isinstance(query, Lambda):
             use_lambda = True
@@ -626,15 +627,19 @@ class LemonDB:
         elif isinstance(query, dict):
             use_dict = True
 
-        elif query != None:
+        elif isinstance(query, str):
             use_re = True
 
         if not query:
+            
             c = LemonCursor(self.items(item=True))
-            if rate and rate <= 1:
-                c = c.all()[:rate][0]
+            if rate and len(c) <= 0:
+                return []
+            elif rate and rate <= 1:
+                c = c.all()[0]
+
             elif rate:
-                c = c.all[:rate]
+                c = c.all()[:rate]
 
             return c
 
@@ -646,6 +651,14 @@ class LemonDB:
                 #: Convert the list of items into set and check for same key, value
                 if set(query).intersection(item):
                     c.add_query_result(i)    
+
+            if rate and len(c) <= 0:
+                return []
+            elif rate and rate <= 1:
+                c = c.all()[0]
+
+            elif rate:
+                c = c.all()[:rate]
 
             return c
 
@@ -681,27 +694,36 @@ class LemonDB:
                 return ops[op](i[item], key)
 
             c = LemonCursor(_query.where(wrapper).to_list())
-            if rate and rate <= 1:
-                c = c.all()[:rate][0]
+            if rate and len(c) <= 0:
+                return []
+            elif rate and rate <= 1:
+                c = c.all()[0]
+
             elif rate:
-                c = c.all[:rate]
+                c = c.all()[:rate]
             
             return c
         
         if use_lambda:
             c = LemonCursor(_query.where(query).to_list())
-            if rate and rate <= 1:
-                c = c.all()[:rate][0]
+            if rate and len(c) <= 0:
+                return []
+            elif rate and rate <= 1:
+                c = c.all()[0]
+
             elif rate:
-                c = c.all[:rate]
+                c = c.all()[:rate]
 
             return c
 
         c = LemonCursor(result)
-        if rate and rate <= 1:
-            c = c.all()[:rate][0]
+        if rate and len(c) <= 0:
+            return []
+        elif rate and rate <= 1:
+            c = c.all()[0]
+
         elif rate:
-            c = c.all[:rate]
+            c = c.all()[:rate]
 
         return c
 
