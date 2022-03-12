@@ -43,7 +43,10 @@ from lemondb.server import (
     LemonClient
 )
 import socket
-from urllib.parse import urlparse
+from urllib.parse import (
+    parse_qsl,
+    urlparse,
+)
 from lemondb.middleware import JsonMiddleware
 from lemondb.document import Document
 from lemondb.constants import ops
@@ -67,16 +70,19 @@ def catch_exceptions(decorator=None):
 
 class LemonDB:
     """
-    NOTE: This library is currently on a BETA / ALPHA. Not yet
-    used for production since there is some bugs might occur.
-    
     Release Changes: v.0.0.3:
         The new release v.0.0.3 has added new features. The new
         Socket Server & Client feature so that you can run the
         database on a VPS or any hosting server. 
 
-    NOTE: For Server & Client used. Kindly pass keyword argument
-    host_checking to automatically detect if it is client or
+    Release Changes: v0.0.7:
+        Massive bug fixed including the server & client. Uses UDP 
+        socket implemention instead for faster performance. Also 
+        added several queries such as dict to make things easier.
+
+
+    NOTE: For Server & Client used. Kindly use the scheme lemondb://
+    or http:// to automatically detect if it is client or
     server or manually pass keyword arguments if the given name
     is client or server to avoid slow performance. 
 
@@ -118,7 +124,7 @@ class LemonDB:
         >>> {'name': 'John Doe'}
 
     Last but not the least, LemonDB support a database encryption with 
-    password also known as Sidle Encryption (https://github.com/znqi/sidle). 
+    password also known as Sidle Encryption (https://github.com/zxnqi/sidle). 
     By default LemonDB allows you to install the `sidle` library in order 
     to do the operation. You can access it by using the standard middleware:
     `lemondb.middleware.SidleMiddleware` that accept a positional arguments
@@ -193,8 +199,10 @@ class LemonDB:
 
     #: LemonServer Instance
     #: versionAdded: 0.0.3
-    server_instance: LemonClient = None
+    server_instance: LemonServer = None
 
+    #: Logger instance
+    logger = None
 
     def __init__(
         self,
@@ -277,36 +285,62 @@ class LemonDB:
         if self.table_name:
             self.default_table = self.table_name
 
-        if self.kwargs.get('host_checking', False):
-            if self.__check_if_server_client():
+        if not self.client and not self.server \
+            and self.kwargs.get('host_checking', True):
+            checking = self.__check_if_server_client()
+            if checking:
+
                 self.client = True
-            elif self.__check_if_server_client == 0:
+            elif checking == 0:
                 self.server = True
         
+
         if self.server:
             parsed = self.__parse_url(self.name)
+            if self.logger:
+                self.logger.info('Binding server -> : {h}:{p}'.format(
+                    h=parsed['host'],
+                    p=parsed['port']
+                ))
+                
             db_dir = pathlib.Path().home() / '.lemondb' / 'db'
             if not db_dir.exists():
                 os.mkdir(db_dir.absolute())
             
             self.name = str(
-                (db_dir / 'db' ).absolute()
+                (db_dir / '{h}-{p}.db'.format(
+                    h=parsed['host'], 
+                    p=parsed['port']
+                )).absolute()
             )
             self.document_cls = Document(
-                path=(db_dir / 'db' ).absolute(),
+                path=(db_dir / '{h}-{p}.db'.format(
+                    h=parsed['host'], 
+                    p=parsed['port']
+                )).absolute(),
                 middleware_cls=self.middleware_cls
             )
-
+            db = LemonDB(self.name, host_checking=False)
             self.run_plugin(plugin_cls=plugin_cls)
-            self.plugin_cls._init_db()
+            if not (db_dir / '{h}-{p}.db'.format(
+                h=parsed['host'], 
+                p=parsed['port'])).exists():
+                self.plugin_cls._init_db()
 
             self.server_instance = LemonServer(
-                host=(parsed['host'], parsed['port'])
+                host=(parsed['host'], parsed['port']),
+                db=db
             )
-            self.server_instance.run(self)
+            self.server_instance.run()
         
         elif self.client:
             parsed = self.__parse_url(self.name)
+            if self.logger:
+                self.logger.info('Client Instance: {h}:{p}'.format(
+                    h=parsed['host'], 
+                    p=parsed['port'])
+                )
+
             self.client_instance = LemonClient(
                 host=(parsed['host'], parsed['port'])
             )
@@ -314,8 +348,9 @@ class LemonDB:
         self.run_plugin(plugin_cls=plugin_cls)
 
         
-        if not self.db_path.exists():
+        if not self.db_path.exists() and not self.client and not self.server:
             self.plugin_cls._init_db()
+    
 
         if self.server:
             self.repr_name = 'LemonServer'
@@ -361,7 +396,14 @@ class LemonDB:
         return_dict = options.get('dict', False)
         item = options.get('item', False)
         data = self.document_cls.read()
-        
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'items',
+                'data': table_name,
+                'kwargs': options
+            })
+
+
         if item:
             l = []
             for k,v in data.items():
@@ -388,10 +430,12 @@ class LemonDB:
         Clear all item from the database including the tables and
         create a new default table name.
         """
-
+        if self.client_instance:
+            self.client_instance.send({'op': 'clear'})
         data = self.document_cls.read()
         data.clear()
         self.plugin_cls._init_db()
+        return data
 
     @catch_exceptions()
     def insert(self, item: Mapping, **options):
@@ -417,11 +461,11 @@ class LemonDB:
             item = list(item)
         
         if self.client_instance:
-            self.client_instance.send(
-                op='insert',
-                data=item
-            )
-            return item
+            return self.client_instance.send({
+                'op': 'insert',
+                'data': item,
+                'kwargs': options
+            })
             
         
         raw_data = self.document_cls.read()
@@ -464,6 +508,11 @@ class LemonDB:
         Simillar to `insert` however insert all items 
         from the given iterable / list. 
         """
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'insert_many',
+                'data': iterable
+            })
         
         for i in iterable:
             if self.client_instance:
@@ -479,7 +528,7 @@ class LemonDB:
     def delete(
         self, 
         query: Any, 
-        all: Optional[bool] = True
+        **options
     ):
         
         """
@@ -505,14 +554,17 @@ class LemonDB:
             The deleted item.
 
         """
-        if self.client_instance:
-            self.client_instance.send(
-                op='delete',
-                data=query
-            )
         
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'delete',
+                'data': query,
+                'kwargs': options
+            })
+        
+        all = options.pop('all', True)
         if isinstance(query, Mapping):
-            self.document_cls.delete(query, all=True)
+            self.document_cls.delete(query, all=all)
             return query
 
         else:
@@ -526,7 +578,7 @@ class LemonDB:
                 # TODO: No result found on a search.
                 return None
 
-            self.document_cls.delete(data, all=True)
+            self.document_cls.delete(data, all=all)
             return data
 
     @catch_exceptions()
@@ -560,7 +612,13 @@ class LemonDB:
             >>> ...
 
         """
-
+        
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'update',
+                'data': query,
+                'item': item
+            })
         _ = self.search(query)
         
         if not _:
@@ -603,6 +661,12 @@ class LemonDB:
             The list of possible result for the queries.
 
         """
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'search',
+                'data': query,
+                'kwargs': options
+            })
         rate = options.pop('rate', None)
         
         if self.client_instance:
@@ -644,6 +708,7 @@ class LemonDB:
             return c
 
         if use_dict:
+            
             query = list(query.items())
             c = LemonCursor([])
             for i in self.items(item=True):
@@ -738,10 +803,22 @@ class LemonDB:
             >>> {'name': 'John Doe', 'user_id': 19123713123}
 
         """
+        
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'find_one',
+                'data': query
+            })
         return self.search(query, rate=1)
 
     @catch_exceptions()
     def find(self, query=None, **options):
+        if self.client_instance:
+            return self.client_instance.send({
+                'op': 'find_one',
+                'data': query,
+                'kwargs': options
+            })
         return self.search(query, **options)
 
 
@@ -795,7 +872,7 @@ class LemonDB:
         )
 
         m = re.match(pattern, self.name)
-        
+     
         if m:
             #: Try if it is client or server
             parsed = self.__parse_url(self.name)
@@ -817,11 +894,12 @@ class LemonDB:
         """
 
         parsed = urlparse(url)
+        q = dict(parse_qsl(parsed.query))
         return {
             'scheme': parsed.scheme,
             'host': parsed.hostname,
             'port': parsed.port,
-            'query': parsed.query,
+            'query': q,
         }
 
     def run_plugin(self, plugin_cls: Any):
