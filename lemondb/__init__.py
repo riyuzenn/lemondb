@@ -22,5 +22,5 @@ from lemondb.database import LemonDB
 from lemondb.query import Query
 
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 __all__ = ['LemonDB', 'Query']
