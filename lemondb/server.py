@@ -19,6 +19,7 @@
 # SOFTWARE.
 
 
+from tkinter import E
 from lemondb.types import (
     Optional,
     Mapping
@@ -28,34 +29,76 @@ try:
 except ModuleNotFoundError:
     SidleEncryption = None
 
-import socket
+import socketserver
 import json
 import sys
+import socket
+import time
 
 class BaseServer:
     """
     Base class for the server.
     """
 
-    def create(self):
-        """Base Server for creating server. Notimplemented"""
-        raise NotImplementedError
-        
     def run(self):
-        """Run the server given the host."""
         raise NotImplementedError
 
 class BaseClient:
     """
     Base class for handling client connection
     """
-    
-    def connect(self):
-        raise NotImplementedError
 
     def send(self, data: Mapping):
         raise NotImplementedError
+
+class _LemonHandler(socketserver.DatagramRequestHandler):
+    """
+    Request Handler for LemonServer
+    """
+    def send_operation(self, op, data, kwargs, _data):
+
+        if op.__name__ == 'update':
+            item = _data.get('item')
+            send = op(data, item)
+
+        elif data:
+            send = op(data)
+        elif kwargs and data:
+            send = op(data, **kwargs)
+        else:
+            send = op()
+
+        return send
+
+    def handle(self):
+        db = self.server.db
+        enc = self.server.enc
+        logger = db.logger
+        socket = self.request[1]
+        try:
+            _data = json.loads(enc.decrypt(self.request[0].strip()))
+        except ValueError:
+            _data = None
+            if logger:
+                logger.error('Error Parsing Data: {d}; Ignoring'.format(d=_data))
         
+        if logger:
+            logger.info('Received Data From : {h}'.format(h=self.client_address))        
+
+        op = _data.get('op')
+        data = _data.get('data', {})
+        kwargs = _data.get('kwargs', {})
+        if not hasattr(db, op):
+            raise AttributeError('Operation: {} not found'.format(op))
+        
+        op = db.__getattribute__(op)
+        try:
+            send = self.send_operation(op, data, kwargs, _data)
+        except Exception as e:
+            send = {'error': e}
+
+        socket.sendto(enc.encrypt(json.dumps(send)), self.client_address)
+
 
 class LemonServer(BaseServer):
     """
@@ -71,10 +114,6 @@ class LemonServer(BaseServer):
             The host of the server to be bind to. The host pattern should
             be 0.0.0.0:3000 where 3000 is the port and 0.0.0.0 is the host
             ofcourse.
-
-        key (Optional[str]):
-            The password key for the server. Optional. Set it to None if 
-            you don't want to add password key.
 
     Example (Cannot be used directly):
 
@@ -94,7 +133,7 @@ class LemonServer(BaseServer):
     def __init__(
         self, 
         host: str, 
-        key: Optional[str] = None, 
+        db,
         **options
     ):
         """
@@ -104,10 +143,6 @@ class LemonServer(BaseServer):
                 The host of the server to be bind to. The host pattern should
                 be 0.0.0.0:3000 where 3000 is the port and 0.0.0.0 is the host
                 ofcourse.
-
-            key (Optional[str]):
-                The password key for the server. Optional. Set it to None if 
-                you don't want to add password key.
 
             Keyword Arguments (kwargs):
             
@@ -123,76 +158,33 @@ class LemonServer(BaseServer):
         """
 
         self.host = host
-        self.key  = key
+        self.db = db
         self.opt  = options
         if SidleEncryption:
             self.enc  = SidleEncryption(self.enc_key)
         else:
-            self.enc = None
-            
-        self.buff = self.opt.get('buffer_value', 65537)
+            raise RuntimeError('Sidle encryption is missing')        
 
         if isinstance(host, str):
             self.host = self.__parse_host(host)
 
 
-    def create(self) -> socket.socket:
-        """
-        Create the socket server given the host and configuration.
-        """
-        #: Get all kwargs option 
-        client = self.opt.get('client', 1)
-        reuse_socket = self.opt.get('reuse_socket', True)
+    def run(self):
+        start = time.time()
+        reuse_addr = self.opt.pop('reuse_addr', True)
 
-        self.socket = socket.socket(
-            family=socket.AF_INET, 
-            type=socket.SOCK_STREAM
-        )
-        if reuse_socket:
-            
-            self.socket.setsockopt(
-                socket.SOL_SOCKET, 
-                socket.SO_REUSEADDR, 
-                1
-            )
-        
-        self.socket.bind(self.host)
-        self.socket.listen(client)
-        self.server_loop = True
-
-        return self.socket
-
-    def run(self, dbclass):
-        server = self.create()
         try:
-            while self.server_loop:
-                self._handle_request(server, dbclass)
+            with socketserver.UDPServer(self.host, _LemonHandler) as server:
+                server.allow_reuse_address = reuse_addr
+                server.db = self.db
+                server.enc = self.enc
+                server.serve_forever()
 
         except KeyboardInterrupt:
-            sys.exit()
+            if self.db.logger:
+                self.db.logger.error('Server Killed; Total time: {:.2f}s'.format(time.time() - start))
 
-    def _handle_request(self, server: socket.socket, dbclass):
-        """
-        Handle all request sent to the server.
-        """
-        connection, address = server.accept()
-        raw_data = connection.recv(self.buff)
-        
-        #: The sent data should be json formatted.
-        if raw_data:
-            decrypted = json.loads(
-                self.enc.decrypt(raw_data)
-            )
-
-            op = decrypted.get('op', None)
-            data = decrypted.get('data', None)
-        
-        try:
-            operation = dbclass.__getattribute__(op)
-            operation(data)
-        except AttributeError:
-            dbclass.logger.error('"%s" is not an operation' % (op))
-
+  
 
     def __parse_host(self, host: str):
         lst = host.split(':')
@@ -221,57 +213,35 @@ class LemonClient(BaseClient):
     def __init__(
         self, 
         host: str, 
-        key: Optional[str] = None,
         **option
     ):
 
         self.host = host
-        self.key  = key
         self.opt  = option
 
         if isinstance(host, str):
             self.host = self.__parse_host(host)
 
-        if option.get('auto_connect', True):
-            self.connect()
-
-
-    def connect(self):
-        """
-        Create a connection between the socket server that
-        handles data and inorder to send data.
-        """
+        if SidleEncryption:
+            self.enc  = SidleEncryption(self.enc_key)
+        else:
+            raise RuntimeError('Sidle encryption is missing')        
 
         self.__initialize_socket()
-        try:
-            self._socket.connect(self.host)
-        except Exception:
-            return False
-
-
-        return True
         
 
-    def send(self, op: str, data: Mapping):
+    def send(self, data: dict, buffer: int=1024):
         """
         Send raw data given the operation to the
         socket server.
         """
+        
+        data = self.enc.encrypt(json.dumps(data))
+        self._socket.sendto(data, self.host)
+        recv = self._socket.recv(buffer)
+    
+        return json.loads(self.enc.decrypt(recv))
 
-        all_op = ['insert', 'update', 'delete', 'search']
-        if op not in all_op:
-            raise TypeError('%s is not an operation' % (op))
-
-        raw = json.dumps({
-            'op': op,
-            'data': data
-        })
-
-        self._socket.send(
-            self.enc.encrypt(raw)
-        )
-
-        return raw
 
 
     def __initialize_socket(self):
@@ -280,7 +250,7 @@ class LemonClient(BaseClient):
         """
         self._socket = socket.socket(
             family=socket.AF_INET, 
-            type=socket.SOCK_STREAM
+            type=socket.SOCK_DGRAM
         )
         return self._socket
 
