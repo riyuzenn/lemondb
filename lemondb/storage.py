@@ -28,10 +28,53 @@ from lemondb.types import (
 )
 from lemondb.middleware import JsonMiddleware
 
+def _increment_id(table: dict):
+    if not table:
+        return 0
+        
+    return int(max(list(table.keys()))) + 1
 
-class Document:
+class Document(dict):
     """
-    A document class used for handling file operations
+    A Document class that handle document from the databse.
+    Document act as list however it is in form of dictionary.
+    """
+
+    def __init__(self, value: Any, id: int=None):
+        self.value = value
+        self._id = id
+        super().__init__(self.value)
+
+    def __getitem__(self, __k) -> dict:
+        return super().__getitem__(__k)
+
+    def __getattr__(self, __k):
+        return self.__getitem__(__k)
+
+    @property
+    def id(self):
+        return self._id
+
+    def to_dict(self):
+        return self.value
+
+class Storage:
+    """
+    Base class for all storage.
+    """
+
+    def read(self):
+        raise NotImplementedError
+    
+    def write(self, data):
+        raise NotImplementedError
+
+    def delete(self, data):
+        raise NotImplementedError
+
+class LemonStorage(Storage):
+    """
+    A storage class used for handling file operations
     such as writting, reading and deleting item.
     """
 
@@ -50,18 +93,6 @@ class Document:
             # TODO: Middleware class already initialized.
             self.middleware = middleware_cls
     
-    def __getattr__(self, item: str):
-        return self.__getitem__(
-            key=item
-        )
-
-    def __getitem__(
-        self, 
-        key: str, 
-        default: Optional[Any] = None
-    ):
-
-        pass
 
     def read(self) -> dict:
         return self.middleware.read(path=self.path)
@@ -80,7 +111,8 @@ class Document:
         if not raw:
             item = self._increment(
                 data=data,
-                item=item
+                item=item,
+                raw=True
             )
         else:
             item = item
@@ -92,21 +124,18 @@ class Document:
     def delete(self, item: Mapping, all: Optional[bool] = True):
         return self.middleware.delete(item, path=self.path, all=all)
     
-    def _increment(self, data: Mapping, item: Mapping) -> Mapping:
+    def _increment(self, table: dict, item: Mapping, raw=False) -> Mapping:
         """
         Increment the given item to the last given data.
         """
+        if raw:
+            _ = list(table.keys())[0]
+            table = table[_]
 
-        raw = []
-        for k, v in data.items():
-            if v:
-                raw = list(v.items())
-            else:
-                v.update({'0': item}); return data
-
-
-        k,v = raw[-1]
-        i = {int(k) + 1: item}
-        for k,v in data.items(): v.update(i)
-
-        return data
+        if isinstance(item, Document):
+            document_id = item.id
+        else:
+            document_id = _increment_id(table)
+            
+        table.update({document_id: item})
+        return table

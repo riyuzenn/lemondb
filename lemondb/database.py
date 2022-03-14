@@ -48,7 +48,7 @@ from urllib.parse import (
     urlparse,
 )
 from lemondb.middleware import JsonMiddleware
-from lemondb.document import Document
+from lemondb.storage import Document, LemonStorage
 from lemondb.constants import ops
 from lemondb.utils import iterate_dict
 from lemondb.logger import logger
@@ -156,9 +156,9 @@ class LemonDB:
             Default Value: JsonMiddleware
 
 
-        :param document_cls (Document):
-            Set the document class for creating documents.
-            Default Value: Document
+        :param storage_cls (Storage):
+            Set the storage class for read and writing data.
+            Default Value: LemonStorage
 
     Server Example:
         >>> from lemondb import LemonDB
@@ -209,7 +209,7 @@ class LemonDB:
         name: str,
         plugin_cls: Optional[BasePlugin] = None,
         middleware_cls: Optional[Middleware] = None,
-        document_cls: Optional[Document] = None,
+        storage_cls: Optional[LemonStorage] = None,
         **kwargs
     ):
 
@@ -232,9 +232,9 @@ class LemonDB:
                 Default Value: JsonMiddleware
 
 
-            :param document_cls (Document):
-                Set the document class for creating documents.
-                Default Value: Document
+            :param storage_cls (Storage):
+                Set the storage class for read and writing document.
+                Default Value: LemonStorage
 
         Example:
 
@@ -267,13 +267,13 @@ class LemonDB:
         else:
             self.middleware_cls = middleware_cls
 
-        if not document_cls:
-            self.document_cls = Document(
+        if not storage_cls:
+            self.storage_cls = LemonStorage(
                 path=self.db_path, 
                 middleware_cls=self.middleware_cls
             )
         else:
-            self.document_cls = document_cls
+            self.storage_cls = storage_cls
 
         
         if not 'table_name' in self.kwargs:
@@ -313,7 +313,7 @@ class LemonDB:
                     p=parsed['port']
                 )).absolute()
             )
-            self.document_cls = Document(
+            self.storage_cls = LemonStorage(
                 path=(db_dir / '{h}-{p}.db'.format(
                     h=parsed['host'], 
                     p=parsed['port']
@@ -375,7 +375,7 @@ class LemonDB:
             name=name, 
             plugin_cls=self.plugin_cls,
             middleware_cls=self.middleware_cls, 
-            document_cls=self.document_cls,
+            storage_cls=self.storage_cls,
             **options
         )
 
@@ -384,7 +384,7 @@ class LemonDB:
         """
         Get all table name and return a list.
         """
-        return [k for k in self.document_cls.read().keys()]
+        return [k for k in self.storage_cls.read().keys()]
 
 
     @catch_exceptions()
@@ -395,7 +395,7 @@ class LemonDB:
 
         return_dict = options.get('dict', False)
         item = options.get('item', False)
-        data = self.document_cls.read()
+        data = self.storage_cls.read()
         if self.client_instance:
             return self.client_instance.send({
                 'op': 'items',
@@ -432,7 +432,7 @@ class LemonDB:
         """
         if self.client_instance:
             self.client_instance.send({'op': 'clear'})
-        data = self.document_cls.read()
+        data = self.storage_cls.read()
         data.clear()
         self.plugin_cls._init_db()
         return data
@@ -456,6 +456,7 @@ class LemonDB:
             The item to be inserted.
 
         """
+        _item = item
         #: If the data is set, then convert it to list.
         if isinstance(item, set):
             item = list(item)
@@ -468,10 +469,11 @@ class LemonDB:
             })
             
         
-        raw_data = self.document_cls.read()
+        raw_data = self.storage_cls.read()
         raw = False
         if not self.db_path.exists():
             self.plugin_cls._init_db()
+        
         
         table = options.pop('table', self.default_table)
         if table:
@@ -488,8 +490,8 @@ class LemonDB:
             raw = True
             if table == self.default_table:
 
-                item = self.document_cls._increment(
-                    data=_r_d, item=item)
+                item = self.storage_cls._increment(
+                    table=self.__read_table__(), item=item)
 
 
             else:
@@ -498,9 +500,10 @@ class LemonDB:
                     data=_r_d,
                     raw=item
                 )
-            
-        self.document_cls.write(item, raw=raw)
-        return item
+
+
+        self.storage_cls.write(item, raw=raw)
+        return _item
     
     @catch_exceptions()
     def insert_many(self, iterable: Iterable):
@@ -564,7 +567,7 @@ class LemonDB:
         
         all = options.pop('all', True)
         if isinstance(query, Mapping):
-            self.document_cls.delete(query, all=all)
+            self.storage_cls.delete(query, all=all)
             return query
 
         else:
@@ -578,7 +581,7 @@ class LemonDB:
                 # TODO: No result found on a search.
                 return None
 
-            self.document_cls.delete(data, all=all)
+            self.storage_cls.delete(data, all=all)
             return data
 
     @catch_exceptions()
@@ -626,14 +629,14 @@ class LemonDB:
             raise SearchQueryError('The search query doesnt exist on the table/database')
 
         result = _[0]
-        data = self.document_cls.read()
+        data = self.storage_cls.read()
         for table, value in list(data.items()):
             for k,v in list(value.items()):
                 if v == result:
                     data[table][k].update(item)
                     break
 
-        self.document_cls.write(data, mode='w', raw=True)
+        self.storage_cls.write(data, mode='w', raw=True)
         return item
 
     @catch_exceptions()
@@ -823,7 +826,7 @@ class LemonDB:
 
 
     def __len__(self):
-        data = self.document_cls.read()
+        data = self.storage_cls.read()
         return len(data[self.default_table])
 
 
@@ -834,6 +837,9 @@ class LemonDB:
             length=len(self),
             table_count=len(self.tables()),
         )
+
+    def __read_table__(self):
+        return self.storage_cls.read().get(self.table_name, {self.table_name: {}})
 
     def __construct_table(
         self, 
@@ -849,9 +855,9 @@ class LemonDB:
         if not raw:
             _ = {table: {}}
         elif raw and data:
-            _ = self.document_cls._increment(data, raw)
+            _ = self.storage_cls._increment(self.__read_table__(), raw)
         else:
-            _ = self.document_cls._increment({table: {}}, raw)
+            _ = self.storage_cls._increment(self.__read_table__(), raw)
 
         data.update(_); return data
 
@@ -912,7 +918,7 @@ class LemonDB:
             #: Run the plugin and give all parameters
             self.plugin_cls.run(
                 name=self.name,
-                document_cls=self.document_cls,
+                storage_cls=self.storage_cls,
                 plugin_cls=self.plugin_cls,
                 middleware_cls=self.middleware_cls,
                 **self.kwargs
@@ -921,7 +927,7 @@ class LemonDB:
             self.plugin_cls = plugin_cls()
             self.plugin_cls.run(
                 name=self.name,
-                document_cls=self.document_cls,
+                storage_cls=self.storage_cls,
                 plugin_cls=self.plugin_cls,
                 middleware_cls=self.middleware_cls,
                 **self.kwargs
