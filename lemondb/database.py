@@ -48,7 +48,7 @@ from urllib.parse import (
     urlparse,
 )
 from lemondb.middleware import JsonMiddleware
-from lemondb.storage import Document, LemonStorage
+from lemondb.storage import LemonStorage
 from lemondb.constants import ops
 from lemondb.utils import iterate_dict
 from lemondb.logger import logger
