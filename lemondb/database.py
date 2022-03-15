@@ -19,6 +19,7 @@
 # SOFTWARE.
 
 import os
+from lemondb.middleware.base import BaseMiddleware
 from lemondb.plugin import (
     BasePlugin,
     LemonPlugin
@@ -26,12 +27,11 @@ from lemondb.plugin import (
 import pathlib
 from lemondb.types import (
     Optional,
-    Middleware,
     Any,
-    Dict,
     Lambda,
     Iterable,
-    Mapping
+    Mapping,
+    
 )
 from lemondb.query import (
     SearchQuery,
@@ -47,15 +47,30 @@ from urllib.parse import (
     parse_qsl,
     urlparse,
 )
+from lemondb.utils import (
+    iterate_dict,
+    typenize,
+    untypenize
+)
 from lemondb.middleware import JsonMiddleware
 from lemondb.storage import LemonStorage
 from lemondb.constants import ops
-from lemondb.utils import iterate_dict
 from lemondb.logger import logger
 from lemondb.errors import SearchQueryError
+
 import re
 
 def catch_exceptions(decorator=None):
+    """
+
+    A Decorator used for catching exception. This decorator
+    is wrapper to check weather the logger (loguru) plugin 
+    is installed and use it as decorator else ignore.  Since
+    loguru.catch does not accept functions it should be used
+    directly as a decorator.
+
+    """
+    
     condition = True if logger else False
     if not decorator:
         decorator = logger.catch if logger else None
@@ -70,16 +85,6 @@ def catch_exceptions(decorator=None):
 
 class LemonDB:
     """
-    Release Changes: v.0.0.3:
-        The new release v.0.0.3 has added new features. The new
-        Socket Server & Client feature so that you can run the
-        database on a VPS or any hosting server. 
-
-    Release Changes: v0.0.7:
-        Massive bug fixed including the server & client. Uses UDP 
-        socket implemention instead for faster performance. Also 
-        added several queries such as dict to make things easier.
-
 
     NOTE: For Server & Client used. Kindly use the scheme lemondb://
     or http:// to automatically detect if it is client or
@@ -184,7 +189,31 @@ class LemonDB:
         >>> db.search(query.name == 'John Doe')
         >>> [{'name': 'John Doe'}]
 
-    
+    Release Changes: v.0.0.3:
+        The new release v.0.0.3 has added new features. The new
+        Socket Server & Client feature so that you can run the
+        database on a VPS or any hosting server. 
+
+    Release Changes: v0.0.7:
+        Massive bug fixed including the server & client. Uses UDP 
+        socket implemention instead for faster performance. Also 
+        added several queries such as dict to make things easier.
+
+    Release Changes: v1.0.0b
+        Added multi support for types that json serializer can't 
+        serialize such as `bytes`, `datetime` and more. Also added 
+        the versioning of the database.
+
+        Example: 
+            >>> from lemondb import LemonDB
+            >>> from datetime import datetime
+            >>> db = LemonDB('db')
+            >>> db.insert({'time_id': 0, 'time': datetime.now()})
+            >>> ...
+            >>> #: Searching for the database
+            >>> db.find_one({'time_id'})
+            >>> {'time_id': 0, 'time': datetime.datetime(...)}
+
     """
 
     #: The path for the database.
@@ -208,7 +237,7 @@ class LemonDB:
         self,
         name: str,
         plugin_cls: Optional[BasePlugin] = None,
-        middleware_cls: Optional[Middleware] = None,
+        middleware_cls: Optional[BaseMiddleware] = None,
         storage_cls: Optional[LemonStorage] = None,
         **kwargs
     ):
@@ -444,23 +473,29 @@ class LemonDB:
         be a mapping `(dict)`.
         
         Parameter:
+
             :param item (Mapping):
                 The item to be added to the database.
 
         Example:
+
             >>> from lemondb import LemonDB
             >>> db = LemonDB('test')
             >>> db.insert({'name': 'zenqi'})
 
         Retun:
+
             The item to be inserted.
 
         """
         _item = item
+        
         #: If the data is set, then convert it to list.
         if isinstance(item, set):
             item = list(item)
-        
+        else:
+            item = typenize(item)
+            
         if self.client_instance:
             return self.client_instance.send({
                 'op': 'insert',
@@ -469,7 +504,7 @@ class LemonDB:
             })
             
         
-        raw_data = self.storage_cls.read()
+        raw_data = self.storage_cls.read(False)
         raw = False
         if not self.db_path.exists():
             self.plugin_cls._init_db()
@@ -477,17 +512,11 @@ class LemonDB:
         
         table = options.pop('table', self.default_table)
         if table:
-            _r_d = {}
-
-            if table in raw_data.keys():
-                for k,v in raw_data.items():
-                    if k == table:
-                        _r_d = {k:v}
-                    
-            else:
+            _r_d = raw_data.get(table, None)
+            
+            if not _r_d:
                 _r_d = {table: {}}
             
-            raw = True
             if table == self.default_table:
 
                 item = self.storage_cls._increment(
@@ -502,7 +531,7 @@ class LemonDB:
                 )
 
 
-        self.storage_cls.write(item, raw=raw)
+        self.storage_cls.write(item, table_name=table)
         return _item
     
     @catch_exceptions()
@@ -539,6 +568,7 @@ class LemonDB:
         3 types. Similar to `search`. 
 
         Parameter:
+        
             query (Any):
                 The query of the key to delete.
 
@@ -549,11 +579,13 @@ class LemonDB:
                 to be deleted. Default Value: `True`
 
         Examples:
+
             >>> query = Query()
             >>> db.delete(query.name == 'John Doe')
             >>> ...
 
         Return:
+
             The deleted item.
 
         """
@@ -594,6 +626,7 @@ class LemonDB:
         and update the first result of the query.
 
         Parameters:
+
             query (Any):
                 The query syntax for searching item
 
@@ -622,21 +655,29 @@ class LemonDB:
                 'data': query,
                 'item': item
             })
-        _ = self.search(query)
+        result = self.find_one(query)
         
-        if not _:
+        if not result:
             #: TODO: Searching failed. No result found
             raise SearchQueryError('The search query doesnt exist on the table/database')
 
-        result = _[0]
-        data = self.storage_cls.read()
+        
+        data = self.storage_cls.read(False)
         for table, value in list(data.items()):
             for k,v in list(value.items()):
-                if v == result:
-                    data[table][k].update(item)
+                
+                if untypenize(v) == result:
+                    data[table][k].update(typenize(item))
+        
                     break
-
-        self.storage_cls.write(data, mode='w', raw=True)
+        
+        self.storage_cls.write(
+            data, 
+            table_name=self.table_name, 
+            mode='w', 
+            raw=True
+        )
+        
         return item
 
     @catch_exceptions()
@@ -647,11 +688,19 @@ class LemonDB:
         next is the `lambda` function, dict query and the `re` pattern.
 
         Parameter:
+
             query (Any):
                 The query of the key to search.
-    
+
+            **options(Kwargs):
+                `rate (int)`:
+                    The rate to index the first appearance of int 
+                    from the data. For example:
+                    By setting the rate to 2, it will return the
+                    first 2 item 
 
         Example:
+
             >>> from lemondb import LemonDB, Query
             >>> db = LemonDB('test.json')
             >>> db.insert({'name': 'John Doe'})
@@ -661,6 +710,7 @@ class LemonDB:
             >>> [{"name": "John Doe"}]
         
         Return:
+
             The list of possible result for the queries.
 
         """
@@ -816,6 +866,10 @@ class LemonDB:
 
     @catch_exceptions()
     def find(self, query=None, **options):
+        """
+        Simillar and alias for the `search` function.
+        """
+
         if self.client_instance:
             return self.client_instance.send({
                 'op': 'find_one',
@@ -839,7 +893,11 @@ class LemonDB:
         )
 
     def __read_table__(self):
-        return self.storage_cls.read().get(self.table_name, {self.table_name: {}})
+        return self.storage_cls.read(False)\
+            .get(
+                self.table_name, 
+                {self.table_name: {}}
+            )
 
     def __construct_table(
         self, 
@@ -855,9 +913,15 @@ class LemonDB:
         if not raw:
             _ = {table: {}}
         elif raw and data:
-            _ = self.storage_cls._increment(self.__read_table__(), raw)
+            _ = self.storage_cls._increment(
+                table=self.__read_table__(), 
+                item=raw
+            )
         else:
-            _ = self.storage_cls._increment(self.__read_table__(), raw)
+            _ = self.storage_cls._increment(
+                table=self.__read_table__(), 
+                item=raw
+            )
 
         data.update(_); return data
 
@@ -937,4 +1001,4 @@ class LemonDB:
         self.logger = logger
 
 
-    find.__doc__ = search.__doc__
+    find.__doc__ += search.__doc__
