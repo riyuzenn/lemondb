@@ -33,6 +33,15 @@ from typing import (
 from lemondb.middleware.base import BaseMiddleware
 from lemondb.serializer.base import BaseSerializer
 
+type_mapping = {
+    str: 'string',
+    bytes: 'bytes',
+    list: 'list',
+    tuple: 'tuple',
+    int: 'int',
+    datetime: 'datetime'
+}
+
 
 class DocumentDict(TypedDict):
     item: dict
