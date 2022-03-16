@@ -22,11 +22,12 @@ from lemondb.types import (
     Optional,
     Any,
     Mapping,
-    Middleware,
-    List,
-    Dict
 )
-from lemondb.middleware import JsonMiddleware
+from lemondb.middleware import (
+    JsonMiddleware,
+    BaseMiddleware as Middleware
+)
+from lemondb.utils import untypenize
 
 def _increment_id(table: dict):
     if not table:
@@ -94,31 +95,39 @@ class LemonStorage(Storage):
             self.middleware = middleware_cls
     
 
-    def read(self) -> dict:
-        return self.middleware.read(path=self.path)
+    def read(self, _untypenize: bool=True) -> dict:
+        data = self.middleware.read(path=self.path)
+        if _untypenize:
+            for k,v in data.items():
+                for _k,_v in v.items():
+                    d = untypenize(_v)
+                    data.update({k:v})
+
+        return data
+
 
     def write(
         self, 
         item: Mapping, 
-        raw: Optional[bool] = False,
-        mode: Optional[str] = 'r+'
+        table_name: str,
+        mode: Optional[str] = 'r+',
+        raw: bool=False
     ):
         """
         Write the item to the document
         """
+        if raw:
+            return self.middleware.write(item, path=self.path, mode=mode)
 
-        data = self.read()
-        if not raw:
-            item = self._increment(
-                data=data,
-                item=item,
-                raw=True
-            )
-        else:
-            item = item
-
+        data = self.read(False)
+        table = data.get(table_name, None)
         
-        return self.middleware.write(item, path=self.path, mode=mode)
+        if table == None:
+            data[table_name] = item
+        else:
+            table.update(item)
+
+        return self.middleware.write(data, path=self.path, mode=mode)
 
 
     def delete(self, item: Mapping, all: Optional[bool] = True):
