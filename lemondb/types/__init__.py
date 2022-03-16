@@ -30,8 +30,7 @@ from typing import (
     Dict,
     List
 )
-from lemondb.middleware.base import BaseMiddleware
-from lemondb.serializer.base import BaseSerializer
+from datetime import datetime
 
 type_mapping = {
     str: 'string',
@@ -48,7 +47,6 @@ class DocumentDict(TypedDict):
     ...
 
 Lambda = type(lambda: None)
-Middleware = BaseMiddleware
 
 
 __all__ = [
@@ -63,5 +61,7 @@ __all__ = [
     'Dict',
     'List',
     'Document',
-    'BaseSerializer'
+    'BaseSerializer',
+    'datetime',
+    'type_mapping'
 ]
