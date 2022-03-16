@@ -21,7 +21,8 @@
 
 from lemondb.types import (
     Mapping,
-    datetime
+    datetime,
+    type_mapping
 )
 
 
