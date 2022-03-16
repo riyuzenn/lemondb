@@ -23,14 +23,6 @@ from lemondb.types import (
     Mapping,
     datetime
 )
-type_mapping = {
-    str: 'string',
-    bytes: 'bytes',
-    list: 'list',
-    tuple: 'tuple',
-    int: 'int',
-    datetime: 'datetime'
-}
 
 
 def _typenize(data: dict):
