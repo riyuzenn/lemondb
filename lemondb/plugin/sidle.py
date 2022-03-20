@@ -23,7 +23,7 @@ from lemondb.plugin.base import BasePlugin
 import json
 import pathlib
 import os
-
+from lemondb import __version__
 
 class SidlePlugin(BasePlugin):
     """
@@ -47,8 +47,9 @@ class SidlePlugin(BasePlugin):
             name = self.name
 
         path = pathlib.Path(name).absolute()
-        self.middleware_cls.write(
-            {self.kwargs.get('table_name'): {}}, 
+        self.middleware_cls.write({
+            '__version__': __version__,
+            self.kwargs.get('table_name'): {}}, 
             path, 
             mode='wb'
         )
