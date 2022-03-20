@@ -25,7 +25,7 @@ import json
 from lemondb.types import (
     Optional
 )
-from lemondb import __version__
+
 class LemonPlugin(BasePlugin):
     """
     The base plugin for LemonDB. This create a standard
@@ -36,7 +36,7 @@ class LemonPlugin(BasePlugin):
         self.options = options
         super(LemonPlugin, self).__init__(**self.options)
 
-    def _init_db(self):
+    def _init_db(self, version: str):
         """
         Initialize the db if not exist.
         """
@@ -44,7 +44,7 @@ class LemonPlugin(BasePlugin):
         path = pathlib.Path(self.name)
         with open(path.absolute(), 'w') as f:
             json.dump({
-                '__version__': __version__, 
+                '__version__': version, 
                 self.kwargs.get('table_name'): {}
             }, f)
         
