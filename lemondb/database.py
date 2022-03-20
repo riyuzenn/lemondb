@@ -19,6 +19,7 @@
 # SOFTWARE.
 
 import os
+import time
 from lemondb.middleware.base import BaseMiddleware
 from lemondb.plugin import (
     BasePlugin,
@@ -395,6 +396,39 @@ class LemonDB:
             warn('The database is created from the previous LemonDB version. You can migrate using `migrate`')
 
     @catch_exceptions()
+    def migrate(self):
+        start = time.time()
+        if self.logger:
+            self.logger.info("Migrating -> {} ...".format('.'.join([str(x) for x in version])))
+
+        v = self.storage_cls.read().get('__version__', None)
+        if not v:
+            warn('Version not found, it may cause error')
+        
+        elif v[0] == 0:
+            raise RuntimeError('The database is created from the old version.')
+            
+        elif v == version:
+            if self.logger:
+                self.logger.info('Database is already updated')
+        
+        for _ in self.tables():
+            i = self.items(_)
+            if i != [{}]:
+                if i: self.insert_many(i)
+        
+        
+        self.__update_version(version)
+
+        if self.logger:
+            self.logger.success('All items were re-inserted succesfully: {:.2f}s'.format(
+                time.time() - start
+            ))
+        
+        
+
+
+    @catch_exceptions()
     def table(self, name: str, **options):
         """
         The table for the database. If the given
@@ -419,7 +453,7 @@ class LemonDB:
         """
         Get all table name and return a list.
         """
-        return [k for k in self.storage_cls.read().keys()]
+        return [k for k in self.storage_cls.read().keys() if k != '__version__']
 
 
     @catch_exceptions()
@@ -977,6 +1011,12 @@ class LemonDB:
             'port': parsed.port,
             'query': q,
         }
+
+    def __update_version(self, v: list):
+        data = self.storage_cls.read(False)
+        data.update({'__version__': v})
+        self.storage_cls.write(data, table_name=None, raw=True, mode='w')
+        return ".".join([str(x) for x in v])
 
     def run_plugin(self, plugin_cls: Any):
         """
