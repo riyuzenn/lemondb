@@ -23,5 +23,5 @@ from lemondb.query import Query
 from lemondb.globals import version
 
 
-__version__ = version
+__version__ = ".".join([str(x) for x in version])
 __all__ = ['LemonDB', 'Query']
