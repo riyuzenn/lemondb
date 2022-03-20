@@ -57,7 +57,7 @@ from lemondb.storage import LemonStorage
 from lemondb.constants import ops
 from lemondb.logger import logger
 from lemondb.errors import SearchQueryError
-
+from lemondb.globals import version
 import re
 
 def catch_exceptions(decorator=None):
@@ -354,7 +354,7 @@ class LemonDB:
             if not (db_dir / '{h}-{p}.db'.format(
                 h=parsed['host'], 
                 p=parsed['port'])).exists():
-                self.plugin_cls._init_db()
+                self.plugin_cls._init_db(version)
 
             self.server_instance = LemonServer(
                 host=(parsed['host'], parsed['port']),
@@ -378,7 +378,7 @@ class LemonDB:
 
         
         if not self.db_path.exists() and not self.client and not self.server:
-            self.plugin_cls._init_db()
+            self.plugin_cls._init_db(version)
     
 
         if self.server:
@@ -463,7 +463,7 @@ class LemonDB:
             self.client_instance.send({'op': 'clear'})
         data = self.storage_cls.read()
         data.clear()
-        self.plugin_cls._init_db()
+        self.plugin_cls._init_db(version)
         return data
 
     @catch_exceptions()
@@ -507,7 +507,7 @@ class LemonDB:
         raw_data = self.storage_cls.read(False)
         raw = False
         if not self.db_path.exists():
-            self.plugin_cls._init_db()
+            self.plugin_cls._init_db(version)
         
         
         table = options.pop('table', self.default_table)

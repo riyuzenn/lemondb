@@ -18,10 +18,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from lemondb.database import LemonDB
-from lemondb.query import Query
-from lemondb.globals import version
-
-
-__version__ = version
-__all__ = ['LemonDB', 'Query']
+version = (0, 0, 7)
