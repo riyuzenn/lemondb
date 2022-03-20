@@ -23,7 +23,7 @@ from lemondb.plugin.base import BasePlugin
 import json
 import pathlib
 import os
-from lemondb import __version__
+
 
 class SidlePlugin(BasePlugin):
     """
@@ -35,7 +35,7 @@ class SidlePlugin(BasePlugin):
         self.options = options
         super(SidlePlugin, self).__init__(**self.options)
 
-    def _init_db(self):
+    def _init_db(self, version: str):
         """
         Initialize the db if not exist.
         """
@@ -48,7 +48,7 @@ class SidlePlugin(BasePlugin):
 
         path = pathlib.Path(name).absolute()
         self.middleware_cls.write({
-            '__version__': __version__,
+            '__version__': version,
             self.kwargs.get('table_name'): {}}, 
             path, 
             mode='wb'
