@@ -99,9 +99,12 @@ class LemonStorage(Storage):
         data = self.middleware.read(path=self.path)
         if _untypenize:
             for k,v in data.items():
-                for _k,_v in v.items():
-                    d = untypenize(_v)
-                    data.update({k:v})
+                if not isinstance(v, list) \
+                    and isinstance(v, dict):
+                    #: Ignore the version
+                    for _k,_v in v.items():
+                        d = untypenize(_v)
+                        data.update({k:v})
 
         return data
 

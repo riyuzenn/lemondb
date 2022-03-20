@@ -58,6 +58,7 @@ from lemondb.constants import ops
 from lemondb.logger import logger
 from lemondb.errors import SearchQueryError
 from lemondb.globals import version
+from warnings import warn
 import re
 
 def catch_exceptions(decorator=None):
@@ -386,7 +387,12 @@ class LemonDB:
         elif self.client:
             self.repr_name = 'LemonClient'
 
-        
+        _data = self.storage_cls.read()
+        v = _data.get('__version__', None)
+        if not version:
+            warn('Version not found, Please recreate the database or migrate using `migrate` function')
+        elif v < version:
+            warn('The database is created from the previous LemonDB version. You can migrate using `migrate`')
 
     @catch_exceptions()
     def table(self, name: str, **options):
