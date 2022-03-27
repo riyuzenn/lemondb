@@ -462,9 +462,11 @@ class LemonDB:
         Return all items from the given table, packed on a single list
         """
 
+        table_name = table_name or self.table_name
         return_dict = options.get('dict', False)
         item = options.get('item', False)
         data = self.storage_cls.read()
+
         if self.client_instance:
             return self.client_instance.send({
                 'op': 'items',
@@ -475,18 +477,16 @@ class LemonDB:
 
         if item:
             l = []
-            for k,v in data.items():
-                for i,v in v.items():
-                    l.append(v)
+            for k,v in data.get(table_name).items():
+                l.append(v)
+
             return l
 
-        if table_name:        
-            _items = [data[x] for x in data.keys() if x == table_name]
-        else:
-            _items = [{k:v} for k,v in data.items()]
+
+        _items = [{k:v} for k,v in data.get(table_name).items()]
 
         if return_dict:
-            for k,v in data.items():
+            for k,v in data.get(table_name).items():
                 _items = [{k:v} for k,v in v.items()]
 
 
