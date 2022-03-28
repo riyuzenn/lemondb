@@ -95,7 +95,7 @@ class LemonStorage(Storage):
             self.middleware = middleware_cls
     
 
-    def read(self, _untypenize: bool=True) -> dict:
+    def read(self, _untypenize: bool=True, remove_version: bool=False) -> dict:
         data = self.middleware.read(path=self.path)
         if _untypenize:
             for k,v in data.items():
@@ -105,6 +105,9 @@ class LemonStorage(Storage):
                     for _k,_v in v.items():
                         d = untypenize(_v)
                         data.update({k:v})
+        
+        if remove_version:
+            data.pop('__version__')
 
         return data
 
