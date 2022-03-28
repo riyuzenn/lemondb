@@ -688,7 +688,6 @@ class LemonDB:
             >>> ...
 
         """
-        
         if self.client_instance:
             return self.client_instance.send({
                 'op': 'update',
@@ -702,14 +701,16 @@ class LemonDB:
             raise SearchQueryError('The search query doesnt exist on the table/database')
 
         
-        data = self.storage_cls.read(False)
+        data = self.storage_cls.read(False, remove_version=True)
+
         for table, value in list(data.items()):
-            for k,v in list(value.items()):
-                
-                if untypenize(v) == result:
-                    data[table][k].update(typenize(item))
-        
-                    break
+            if not table == '__version__':
+                for k,v in list(value.items()):
+
+                    if untypenize(v) == result:
+                        data[table][k].update(typenize(item))
+            
+                        break
         
         self.storage_cls.write(
             data, 
