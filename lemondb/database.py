@@ -808,8 +808,9 @@ class LemonDB:
             for i in self.items(item=True):
                 item = list(i.items())
                 #: Convert the list of items into set and check for same key, value
-                if set(query).intersection(item):
-                    c.add_query_result(i)    
+
+                if list(filter(lambda x: x in query, item)):
+                    c.add_query_result(i)  
 
             if rate and len(c) <= 0:
                 return []
