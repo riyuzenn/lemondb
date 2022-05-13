@@ -25,3 +25,23 @@ print(db.find_one({'name': 'Zenqi'}))
 #: {'name': 'Zenqi'}
 
 ```
+
+## 📌 New Features in 1.x Series!
+
+- Different `types` are now supported!  
+- Searching / filtering were improved.
+
+Have you ever wanted to serialize a datetime object? and other type object that standard JSON could'nt serialized?
+Well lemondb now support those. Search & filtering were improved. LemonDB now using cursors. Don't believe me? Try this out
+
+```py
+from lemondb import LemonDB
+from datetime import datetime
+
+# Adding datetime object
+db = LemonDB('test.json')
+db.insert({'name': 'John Doe', 'elapsed-time': datetime.now()})
+
+# Searching now accept dict queries
+db.find_one({'name': 'John Doe'})
+```
