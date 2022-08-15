@@ -8,7 +8,7 @@ Example:
 ```python
 from lemondb import LemonDB
 db = LemonDB('test.db')
-db.insert_many([{'name': 'Zenqi'}, {'name': 'John Doe'}, {'name': 'Elizabeth Doe'}])
+db.insert_many([{'name': 'zenn'}, {'name': 'John Doe'}, {'name': 'Elizabeth Doe'}])
 
 # Search from database using `find` or `search`
 for i in db.find('Doe').where(lambda x: x['name'].startswith('John')):
@@ -18,11 +18,11 @@ for i in db.find('Doe').where(lambda x: x['name'].startswith('John')):
 #: You can use the query or dict
 from lemondb import Query
 query = Query()
-print(db.find_one(query.name == 'Zenqi')))
-#: {'name': 'Zenqi'}
+print(db.find_one(query.name == 'zenn')))
+#: {'name': 'zenn'}
 
-print(db.find_one({'name': 'Zenqi'}))
-#: {'name': 'Zenqi'}
+print(db.find_one({'name': 'zenn'}))
+#: {'name': 'zenn'}
 
 ```
 
