@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Zenqi
+# Copyright (c) 2021 riyuzenn
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ setup(
     description="Simple and lightweight document oriented database",
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
-    author = 'Zenqi',
+    author = 'riyuzenn',
     license = 'MIT',
     version = __version__,
     packages = [p for p in find_packages() if 'test' not in p],

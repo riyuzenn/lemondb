@@ -1,4 +1,4 @@
-# Copyright (c) 2021 Zenqi
+# Copyright (c) 2021 riyuzenn
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -131,7 +131,7 @@ class LemonDB:
         >>> {'name': 'John Doe'}
 
     Last but not the least, LemonDB support a database encryption with 
-    password also known as Sidle Encryption (https://github.com/zxnqi/sidle). 
+    password also known as Sidle Encryption (https://github.com/riyuzenn/sidle). 
     By default LemonDB allows you to install the `sidle` library in order 
     to do the operation. You can access it by using the standard middleware:
     `lemondb.middleware.SidleMiddleware` that accept a positional arguments
@@ -521,7 +521,7 @@ class LemonDB:
 
             >>> from lemondb import LemonDB
             >>> db = LemonDB('test')
-            >>> db.insert({'name': 'zenqi'})
+            >>> db.insert({'name': 'riyuzenn'})
 
         Retun:
 
