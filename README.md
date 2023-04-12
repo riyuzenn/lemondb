@@ -6,11 +6,18 @@
 <table>
 <tbody>
 <td align="center">
-:warning: messy code that leads to broken API. who use this module, anyway?
+:warning: messy code that leads to broken API ― i dont really know how i built this. who use this module, anyway?
 </td>
 </tbody>
 </table>
 </div>
+
+### Reason why you should not use this for production or anything
+
+- Broken API
+- Uses worse searching algorithm that leads to slow operation when handling massive data
+- Unfinished project
+
 
 LemonDB is a simple and lightweight document oriented database written in pure Python 3 tried on version: `3.9` & `3.8`. It should work on versions <= 3.7. This class handle all operation including storing document on a file.
 
