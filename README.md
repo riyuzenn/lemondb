@@ -6,7 +6,7 @@
 <table>
 <tbody>
 <td align="center">
-:warning: messy code tha leads to broken API. who use this module, anyway?
+:warning: messy code that leads to broken API. who use this module, anyway?
 </td>
 </tbody>
 </table>
