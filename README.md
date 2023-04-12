@@ -45,11 +45,8 @@ print(db.find_one({'name': 'zenn'}))
 
 ## 📌 New Features in 1.x Series!
 
-- Different `types` are now supported!  
-- Searching / filtering were improved.
-
-Have you ever wanted to serialize a datetime object? and other type object that standard JSON could'nt serialized?
-Well lemondb now support those. Search & filtering were improved. LemonDB now using cursors. Don't believe me? Try this out
+- ~~Different `types` are now supported!~~
+- ~~Searching / filtering were improved.~~
 
 ```py
 from lemondb import LemonDB
